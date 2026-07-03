@@ -29,6 +29,10 @@ usermod -o -u 1000 moviepilot
 chown -R 1000:1001 /app /public
 ```
 
+同时向 venv 的 `site-packages` 写入 `sitecustomize.py`，为新版 `bcrypt` 补充
+`bcrypt.__about__.__version__` 兼容字段，避免 `passlib 1.7.4` 在登录认证时打印
+`error reading bcrypt version` Traceback。
+
 镜像内置 `entrypoint-wrapper.sh`。每次启动时，它会基于当前上游镜像里的
 `/entrypoint.sh` 动态生成补丁脚本，只跳过已经在派生镜像构建阶段处理过的步骤：
 
