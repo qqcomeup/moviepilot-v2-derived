@@ -16,6 +16,30 @@ fi
 
 echo "[INFO] [DERIVED] entrypoint-wrapper 开始，使用上游脚本: ${src}"
 
+(
+  port="${NGINX_PORT:-3000}"
+  url="http://127.0.0.1:${port}/"
+  for _ in $(seq 1 240); do
+    if python3 - "$url" >/dev/null 2>&1 <<'PY'
+import sys
+import urllib.request
+
+url = sys.argv[1]
+request = urllib.request.Request(url, headers={"User-Agent": "moviepilot-derived-healthcheck"})
+with urllib.request.urlopen(request, timeout=1) as response:
+    if 200 <= response.status < 500:
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+    then
+      echo "[INFO] [DERIVED] WEB端可访问: ${url}，entrypoint 总耗时: $(elapsed_ms "$wrapper_start_ns") ms"
+      exit 0
+    fi
+    sleep 1
+  done
+  echo "[WARN] [DERIVED] WEB端 240 秒内未可访问: ${url}"
+) &
+
 python3 - "$src" "$patched" <<'PY'
 from pathlib import Path
 import re
