@@ -29,8 +29,17 @@ usermod -o -u 1000 moviepilot
 chown -R 1000:1001 /app /public
 ```
 
-配合自定义 `entrypoint.sh` 跳过运行时的 `/app`、`/public` 权限修复后，可以把启动时
-`chown` 阶段从几十秒降到毫秒级。
+镜像内置 `entrypoint-wrapper.sh`。每次启动时，它会基于当前上游镜像里的
+`/entrypoint.sh` 动态生成补丁脚本，只跳过已经在派生镜像构建阶段处理过的步骤：
+
+```text
+groupmod/usermod moviepilot
+chown -R /app
+chown -R /public
+chown -R /app/app/plugins
+```
+
+这样可以继续跟随上游启动脚本更新，同时把启动时 `chown` 阶段从几十秒降到毫秒级。
 
 ## 实测数据
 
@@ -84,8 +93,8 @@ services:
       - PGID=1001
 ```
 
-如果仍然使用官方 `entrypoint.sh`，它可能还是会执行运行时 `groupmod/usermod` 和
-`chown`。需要同步调整启动脚本，跳过已经在镜像构建阶段处理过的步骤。
+不需要再挂载自定义 `entrypoint.sh`，也不需要在 compose 里写额外 `entrypoint:`。
+派生镜像会自动使用内置 wrapper。
 
 ## 适用范围
 
@@ -99,6 +108,6 @@ services:
 
 - 经常更换 `PUID` 或 `PGID`
 - 希望一个镜像同时适配多台不同 UID/GID 的机器
-- 不想维护自定义 `entrypoint.sh`
+- 不想维护宿主机上的自定义 `entrypoint.sh`
 
 如果你的 UID/GID 不是 `1000:1001`，需要修改 workflow 的 build args 后重新构建。
