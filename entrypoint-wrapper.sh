@@ -46,10 +46,8 @@ if missing:
 lines = []
 for line in text.splitlines():
     if re.match(r'^\s*/app\s*\\?\s*$', line):
-        lines.append(': # skipped chown /app path entry; ownership is baked into derived image')
         continue
     if re.match(r'^\s*/public\s*\\?\s*$', line):
-        lines.append(': # skipped chown /public path entry; ownership is baked into derived image')
         continue
     lines.append(line)
 text = "\n".join(lines) + "\n"
