@@ -4,4 +4,6 @@ FROM jxxghp/moviepilot-v2:${MP_TAG}
 ARG PUID=1000
 ARG PGID=1001
 
-RUN chown -R ${PUID}:${PGID} /app /public
+RUN groupmod -o -g ${PGID} moviepilot \
+    && usermod -o -u ${PUID} moviepilot \
+    && chown -R ${PUID}:${PGID} /app /public
