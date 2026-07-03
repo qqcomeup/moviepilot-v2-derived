@@ -4,6 +4,7 @@ set -euo pipefail
 src="/entrypoint.sh"
 patched="/tmp/entrypoint.patched.sh"
 wrapper_start_ns="$(date +%s%N)"
+wrapper_start_at="$(date -Is)"
 
 elapsed_ms() {
   echo $(( ($(date +%s%N) - "$1") / 1000000 ))
@@ -14,40 +15,46 @@ if [ ! -f "$src" ]; then
   exit 1
 fi
 
-echo "[INFO] [DERIVED] entrypoint-wrapper 开始，使用上游脚本: ${src}"
+echo "[INFO] [DERIVED] entrypoint-wrapper 开始时间: ${wrapper_start_at}，起始ns: ${wrapper_start_ns}，使用上游脚本: ${src}"
 
-(
-  port="${NGINX_PORT:-3000}"
-  url="http://127.0.0.1:${port}/"
-  for _ in $(seq 1 240); do
-    if python3 - "$url" >/dev/null 2>&1 <<'PY'
-import sys
-import urllib.request
-
-url = sys.argv[1]
-request = urllib.request.Request(url, headers={"User-Agent": "moviepilot-derived-healthcheck"})
-with urllib.request.urlopen(request, timeout=1) as response:
-    if 200 <= response.status < 500:
-        raise SystemExit(0)
-raise SystemExit(1)
-PY
-    then
-      echo "[INFO] [DERIVED] WEB端可访问: ${url}，entrypoint 总耗时: $(elapsed_ms "$wrapper_start_ns") ms"
-      exit 0
-    fi
-    sleep 1
-  done
-  echo "[WARN] [DERIVED] WEB端 240 秒内未可访问: ${url}"
-) &
-
-python3 - "$src" "$patched" <<'PY'
+python3 - "$src" "$patched" "$wrapper_start_ns" "$wrapper_start_at" <<'PY'
 from pathlib import Path
 import re
 import sys
 
 src = Path(sys.argv[1])
 dst = Path(sys.argv[2])
+start_ns = sys.argv[3]
+start_at = sys.argv[4]
 text = src.read_text()
+
+derived_header = f'''
+__derived_entrypoint_start_ns={start_ns}
+__derived_entrypoint_start_at='{start_at}'
+__derived_uvicorn_marker="/tmp/.derived-uvicorn-ready"
+rm -f "${{__derived_uvicorn_marker}}"
+
+__derived_elapsed_ms() {{
+    echo $(( ($(date +%s%N) - __derived_entrypoint_start_ns) / 1000000 ))
+}}
+
+__derived_log_filter() {{
+    while IFS= read -r line; do
+        printf '%s\\n' "$line"
+        if [[ "$line" == *"Uvicorn running on"* ]] && [ ! -e "${{__derived_uvicorn_marker}}" ]; then
+            : > "${{__derived_uvicorn_marker}}"
+            printf '[INFO] [DERIVED] 后端Uvicorn已启动，entrypoint总耗时: %s ms，开始时间: %s\\n' "$(__derived_elapsed_ms)" "${{__derived_entrypoint_start_at}}"
+        fi
+    done
+}}
+
+echo "[INFO] [DERIVED] entrypoint开始时间: ${{__derived_entrypoint_start_at}}，起始ns: ${{__derived_entrypoint_start_ns}}"
+'''
+
+if text.startswith("#!/bin/bash\n"):
+    text = text.replace("#!/bin/bash\n", "#!/bin/bash\n" + derived_header, 1)
+else:
+    text = derived_header + "\n" + text
 
 replacements = {
     'groupmod -o -g "${PGID}" moviepilot':
@@ -107,6 +114,13 @@ if skipped_app_path or skipped_public_path:
         f'INFO "[DERIVED] chown {message} 已跳过，权限已在派生镜像构建阶段处理"\n{marker}',
         1,
     )
+
+backend_stdout = '> /dev/stdout 2> /dev/stderr &'
+backend_filtered = '> >(__derived_log_filter) 2> >(__derived_log_filter >&2) &'
+if backend_stdout in text:
+    text = text.replace(backend_stdout, backend_filtered)
+else:
+    print("[WARN] Backend stdout/stderr pattern was not found; Uvicorn timing may be unavailable", file=sys.stderr)
 
 dst.write_text(text)
 PY
