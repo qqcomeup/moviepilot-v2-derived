@@ -23,6 +23,9 @@ replacements = {
         ': # skipped groupmod; moviepilot group is baked into derived image',
     'usermod -o -u "${PUID}" moviepilot':
         ': # skipped usermod; moviepilot user is baked into derived image',
+}
+
+optional_replacements = {
     'chown -R moviepilot:moviepilot /app':
         ': # skipped chown /app; ownership is baked into derived image',
     'chown -R moviepilot:moviepilot /public':
@@ -37,6 +40,10 @@ for old, new in replacements.items():
         text = text.replace(old, new)
     else:
         missing.append(old)
+
+for old, new in optional_replacements.items():
+    if old in text:
+        text = text.replace(old, new)
 
 if missing:
     print("[WARN] Some upstream entrypoint patterns were not found:", file=sys.stderr)
