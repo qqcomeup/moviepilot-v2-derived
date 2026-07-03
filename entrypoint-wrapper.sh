@@ -80,7 +80,7 @@ if skipped_app_path or skipped_public_path:
     message = ', '.join(skipped)
     text = text.replace(
         marker,
-        f'INFO "[DERIVED] chown {message} 已跳过，权限已在派生镜像构建阶段处理"\\n{marker}',
+        f'INFO "[DERIVED] chown {message} 已跳过，权限已在派生镜像构建阶段处理"\n{marker}',
         1,
     )
 
