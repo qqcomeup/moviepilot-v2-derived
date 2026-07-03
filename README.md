@@ -1,8 +1,8 @@
 # MoviePilot v2 Derived Image
 
-This image follows `jxxghp/moviepilot-v2` and fixes `/app/app/plugins`
+This image follows `jxxghp/moviepilot-v2` and fixes `/app` and `/public`
 ownership during image build for `PUID=1000` and `PGID=1001`, avoiding
-runtime recursive `chown` over `/app`.
+runtime recursive `chown` over image-owned application paths.
 
 Image:
 
