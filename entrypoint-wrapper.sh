@@ -38,12 +38,28 @@ __derived_elapsed_ms() {{
     echo $(( ($(date +%s%N) - __derived_entrypoint_start_ns) / 1000000 ))
 }}
 
+__derived_format_duration() {{
+    local ms="$1"
+    local seconds=$(( ms / 1000 ))
+    local millis=$(( ms % 1000 ))
+    local minutes=$(( seconds / 60 ))
+    local remain_seconds=$(( seconds % 60 ))
+    local decimal
+    decimal="$(awk -v ms="$ms" 'BEGIN {{ printf "%.1f", ms / 1000 }}')"
+    if [ "$minutes" -gt 0 ]; then
+        printf '%s ms / %s 秒 / %s 分 %s 秒' "$ms" "$decimal" "$minutes" "$remain_seconds"
+    else
+        printf '%s ms / %s 秒' "$ms" "$decimal"
+    fi
+}}
+
 __derived_log_filter() {{
     while IFS= read -r line; do
         printf '%s\\n' "$line"
         if [[ "$line" == *"Uvicorn running on"* ]] && [ ! -e "${{__derived_uvicorn_marker}}" ]; then
             : > "${{__derived_uvicorn_marker}}"
-            printf '[INFO] [DERIVED] 后端Uvicorn已启动，entrypoint总耗时: %s ms，开始时间: %s\\n' "$(__derived_elapsed_ms)" "${{__derived_entrypoint_start_at}}"
+            __derived_total_ms="$(__derived_elapsed_ms)"
+            printf '[INFO] [DERIVED] 后端Uvicorn已启动（任意端口匹配），entrypoint总耗时: %s，开始时间: %s\\n' "$(__derived_format_duration "$__derived_total_ms")" "${{__derived_entrypoint_start_at}}"
         fi
     done
 }}
