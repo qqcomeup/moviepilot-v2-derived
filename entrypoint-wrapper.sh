@@ -41,15 +41,14 @@ __derived_elapsed_ms() {{
 __derived_format_duration() {{
     local ms="$1"
     local seconds=$(( ms / 1000 ))
-    local millis=$(( ms % 1000 ))
     local minutes=$(( seconds / 60 ))
     local remain_seconds=$(( seconds % 60 ))
     local decimal
     decimal="$(awk -v ms="$ms" 'BEGIN {{ printf "%.1f", ms / 1000 }}')"
     if [ "$minutes" -gt 0 ]; then
-        printf '%s ms / %s 秒 / %s 分 %s 秒' "$ms" "$decimal" "$minutes" "$remain_seconds"
+        printf '%s 分 %s 秒' "$minutes" "$remain_seconds"
     else
-        printf '%s ms / %s 秒' "$ms" "$decimal"
+        printf '%s 秒' "$decimal"
     fi
 }}
 
