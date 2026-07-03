@@ -14,6 +14,8 @@ Tags:
 - `latest`
 - upstream version, for example `2.14.1`
 
+The workflow only builds `linux/amd64`, matching the current deployment host.
+
 Manual build:
 
 ```bash
