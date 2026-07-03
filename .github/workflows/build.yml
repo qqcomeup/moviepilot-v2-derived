@@ -108,6 +108,8 @@ jobs:
           platforms: linux/amd64
           build-args: |
             MP_TAG=${{ steps.version.outputs.mp_tag }}
+            PUID=1000
+            PGID=1001
           tags: |
             ${{ steps.version.outputs.target_image }}:${{ steps.version.outputs.mp_tag }}
             ${{ steps.version.outputs.target_image }}:latest
